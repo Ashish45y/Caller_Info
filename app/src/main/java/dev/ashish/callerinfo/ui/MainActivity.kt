@@ -1,7 +1,6 @@
 package dev.ashish.callerinfo.ui
 
 import android.Manifest
-import android.annotation.SuppressLint
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.net.Uri
@@ -10,13 +9,13 @@ import android.os.Bundle
 import android.provider.Settings
 import android.widget.Toast
 import androidx.activity.enableEdgeToEdge
+import androidx.activity.result.ActivityResultLauncher
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.viewModels
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
-import androidx.lifecycle.ViewModel
-import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.LinearLayoutManager
 import dagger.hilt.android.AndroidEntryPoint
@@ -38,11 +37,17 @@ class MainActivity : AppCompatActivity() {
    @Inject
    lateinit var appInfoAdapter: AppInfoAdapter
 
+    private lateinit var requestPermissionsLauncher: ActivityResultLauncher<Array<String>>
+    private lateinit var requestOverlayPermissionLauncher: ActivityResultLauncher<Intent>
+
+
     private val requiredPermissions = arrayOf(
         Manifest.permission.READ_PHONE_STATE,
-        Manifest.permission.RECORD_AUDIO
+        Manifest.permission.READ_CONTACTS,
+        Manifest.permission.RECORD_AUDIO,
+        Manifest.permission.READ_CALL_LOG
     )
-    @SuppressLint("NewApi")
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
@@ -53,18 +58,20 @@ class MainActivity : AppCompatActivity() {
             v.setPadding(systemBars.left, systemBars.top, systemBars.right, systemBars.bottom)
             insets
         }
-
-        if (!hasAllPermissions() && !hasOverlayPermission()) {
-            requestPermissions(requiredPermissions, PERMISSION_REQUEST_CODE)
+        initializePermissionLaunchers()
+        if (!hasAllPermissions() || !hasOverlayPermission()) {
             requestPermissionsOrOverlay()
-        } else {
+        }else{
             setupUI()
         }
-
     }
-    @SuppressLint("NotifyDataSetChanged")
+
     private fun setupUI() {
-        // Initialize the adapter with an empty list to start with
+        setUpRecyclerView()
+        setUpObserveViewModel()
+        appInfoViewModel.fetchApps()
+    }
+    private fun setUpRecyclerView(){
         appInfoAdapter = AppInfoAdapter(ArrayList()) { packageName ->
             openAppInfo(packageName)
         }
@@ -74,6 +81,8 @@ class MainActivity : AppCompatActivity() {
             layoutManager = LinearLayoutManager(this@MainActivity)
             adapter = this@MainActivity.appInfoAdapter
         }
+    }
+    private fun setUpObserveViewModel(){
         lifecycleScope.launch {
             appInfoViewModel.uiState.collectLatest {uiState ->
                 when(uiState){
@@ -90,7 +99,6 @@ class MainActivity : AppCompatActivity() {
 
             }
         }
-        appInfoViewModel.fetchApps()
     }
     private fun openAppInfo(packageName: String) {
         val intent = Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
@@ -99,11 +107,43 @@ class MainActivity : AppCompatActivity() {
         startActivity(intent)
     }
 
+    private fun initializePermissionLaunchers() {
+        requestPermissionsLauncher =
+            registerForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) { permissions ->
+                val allGranted = permissions.values.all { it }
+                if (allGranted) {
+                    if (hasOverlayPermission()) {
+                        setupUI()
+                    } else {
+                        requestOverlayPermission()
+                    }
+                } else {
+                    Toast.makeText(this, "All permissions are required to proceed.", Toast.LENGTH_LONG).show()
+                }
+            }
+
+        requestOverlayPermissionLauncher =
+            registerForActivityResult(ActivityResultContracts.StartActivityForResult()) {
+                if (hasOverlayPermission()) {
+                    if (hasAllPermissions()) {
+                        setupUI()
+                    }
+                } else {
+                    Toast.makeText(
+                        this,
+                        "Overlay permission is required for the app to function.",
+                        Toast.LENGTH_LONG
+                    ).show()
+                }
+            }
+    }
+
     private fun hasAllPermissions(): Boolean {
         return requiredPermissions.all {
             ContextCompat.checkSelfPermission(this, it) == PackageManager.PERMISSION_GRANTED
         }
     }
+
     private fun hasOverlayPermission(): Boolean {
         return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
             Settings.canDrawOverlays(this)
@@ -111,46 +151,21 @@ class MainActivity : AppCompatActivity() {
             true
         }
     }
-    @SuppressLint("InlinedApi")
+
     private fun requestPermissionsOrOverlay() {
         if (!hasAllPermissions()) {
-            requestPermissions(requiredPermissions, PERMISSION_REQUEST_CODE)
+            requestPermissionsLauncher.launch(requiredPermissions)
         }
         if (!hasOverlayPermission()) {
-            val intent = Intent(
-                Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
-                Uri.parse("package:$packageName")
-            )
-            startActivityForResult(intent, OVERLAY_PERMISSION_REQUEST_CODE)
+            requestOverlayPermission()
         }
     }
 
-    override fun onRequestPermissionsResult(
-        requestCode: Int,
-        permissions: Array<out String>,
-        grantResults: IntArray
-    ) {
-        super.onRequestPermissionsResult(requestCode, permissions, grantResults)
-        if (requestCode == PERMISSION_REQUEST_CODE) {
-            if (grantResults.all { it == PackageManager.PERMISSION_GRANTED }) {
-                setupUI()
-            } else {
-                Toast.makeText(this, "Permissions are required for the app to function.", Toast.LENGTH_LONG).show()
-            }
-        }
-    }
-    override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
-        super.onActivityResult(requestCode, resultCode, data)
-        if (requestCode == OVERLAY_PERMISSION_REQUEST_CODE) {
-            if (hasOverlayPermission()) {
-                setupUI()
-            } else {
-                Toast.makeText(this, "Overlay permission is required for the app to function.", Toast.LENGTH_LONG).show()
-            }
-        }
-    }
-    companion object {
-        private const val PERMISSION_REQUEST_CODE = 1001
-        private const val OVERLAY_PERMISSION_REQUEST_CODE = 1002
+    private fun requestOverlayPermission() {
+        val intent = Intent(
+            Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
+            Uri.parse("package:$packageName")
+        )
+        requestOverlayPermissionLauncher.launch(intent)
     }
 }
