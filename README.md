@@ -42,7 +42,6 @@ cd call_info
 
 ## The Complete Project Folder Structure
 
-```
 |── CallerInfoApplication.kt
 ├── di.module
 │   ├── ActivityModule.kt
