@@ -52,6 +52,7 @@ kotlin {
 dependencies {
 
     implementation("com.google.dagger:hilt-android:2.44")
+    implementation(libs.androidx.lifecycle.service)
     kapt("com.google.dagger:hilt-android-compiler:2.44")
     implementation(libs.androidx.appcompat)
     implementation("androidx.core:core-ktx:1.12.0")
@@ -70,4 +71,6 @@ dependencies {
     debugImplementation("androidx.compose.ui:ui-tooling")
     debugImplementation("androidx.compose.ui:ui-test-manifest")
     implementation ("com.google.android.material:material:1.12.0")
+    implementation ("com.squareup.picasso:picasso:2.8")
+    implementation("androidx.paging:paging-runtime:3.1.1")
 }

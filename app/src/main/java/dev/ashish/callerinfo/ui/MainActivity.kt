@@ -59,7 +59,7 @@ class MainActivity : AppCompatActivity() {
             insets
         }
         initializePermissionLaunchers()
-        if (!hasAllPermissions() || !hasOverlayPermission()) {
+        if (!hasAllPermissions() || !hasOverlayPermission()){
             requestPermissionsOrOverlay()
         }else{
             setupUI()
@@ -72,11 +72,13 @@ class MainActivity : AppCompatActivity() {
         appInfoViewModel.fetchApps()
     }
     private fun setUpRecyclerView(){
-        appInfoAdapter = AppInfoAdapter(ArrayList()) { packageName ->
+        appInfoAdapter = AppInfoAdapter{ packageName ->
             openAppInfo(packageName)
         }
-
-        // Set up the RecyclerView with a LinearLayoutManager and the adapter
+        binding.recView.apply {
+            setHasFixedSize(true)
+            setItemViewCacheSize(15)
+        }
         binding.recView.apply {
             layoutManager = LinearLayoutManager(this@MainActivity)
             adapter = this@MainActivity.appInfoAdapter
@@ -90,7 +92,7 @@ class MainActivity : AppCompatActivity() {
 
                     }
                     is AppInfoUiState.Success ->{
-                        appInfoAdapter.submitList(uiState.apps)
+                        appInfoAdapter.submitData(uiState.apps)
                     }
                     is AppInfoUiState.Error ->{
 

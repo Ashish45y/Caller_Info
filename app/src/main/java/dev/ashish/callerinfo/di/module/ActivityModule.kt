@@ -11,10 +11,7 @@ import dev.ashish.callerinfo.ui.adpater.AppInfoAdapter
 class ActivityModule {
     @Provides
     fun provideAppInfoAdapter(): AppInfoAdapter {
-        // Provide an empty lambda or a default action for the click handler
-        return AppInfoAdapter(ArrayList()) { packageName ->
-            // Default action: Log or handle the click event (can be overridden later)
-            // Example: Log.d("AppInfoAdapter", "Clicked on app with package: $packageName")
-        }
+        return AppInfoAdapter{ packageName ->
+                   }
     }
 }

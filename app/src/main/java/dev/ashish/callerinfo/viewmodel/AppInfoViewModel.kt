@@ -3,6 +3,7 @@ package dev.ashish.callerinfo.viewmodel
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import androidx.paging.cachedIn
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dev.ashish.callerinfo.model.AppInfoUiState
 import dev.ashish.callerinfo.repository.AppInfoRepo
@@ -26,7 +27,7 @@ class AppInfoViewModel @Inject constructor(
             _uiState.value = AppInfoUiState.Loading
             try {
                 repository.getAppsWithMicAccess()
-                    .flowOn(dispatcherProvider.io)
+                    .cachedIn(viewModelScope)
                     .collect { apps ->
                         _uiState.value = AppInfoUiState.Success(apps)
                     }
