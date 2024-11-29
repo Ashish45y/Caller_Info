@@ -22,6 +22,16 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import javax.inject.Inject
 
+
+/**
+ * A service class that runs in the foreground to display a floating window showing information about an incoming call.
+ *
+ * The service listens for incoming calls, retrieves the caller's name and number, and displays them in a floating
+ * window above other apps. The window can be closed via a cancel button. The service is started as a foreground
+ * service to ensure it remains active during the call.
+ *
+ * @param dispatcherProvider Provides dispatchers for managing background threading operations.
+ */
 @AndroidEntryPoint
 class CallInfoService : LifecycleService() {
     private lateinit var windowManager: WindowManager
@@ -30,6 +40,13 @@ class CallInfoService : LifecycleService() {
 
     @Inject
     lateinit var dispatcherProvider: DispatcherProvider
+
+    /**
+     * Called when the service is created. Initializes the `WindowManager` and the floating window,
+     * starts the service in the foreground, and sets up the cancel button.
+     *
+     * The method also configures the layout parameters for the floating window and attaches it to the window manager.
+     */
 
     override fun onCreate() {
         super.onCreate()
@@ -44,6 +61,7 @@ class CallInfoService : LifecycleService() {
             WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE,
             PixelFormat.TRANSLUCENT
         )
+        // initializing the binding here with layout params.
         binding = CallInfoViewBinding.inflate(LayoutInflater.from(this))
         windowManager.addView(binding.root, layoutParams)
         isViewAdded = true
@@ -62,6 +80,16 @@ class CallInfoService : LifecycleService() {
         }
     }
 
+
+    /**
+     * Called when the service is started. Retrieves the incoming call number and name, and displays them in the floating window.
+     *
+     * @param intent The intent containing the incoming call data, such as the caller's number and name.
+     * @param flags Additional flags for the service.
+     * @param startId The ID to track the service start request.
+     * @return The start command result, which ensures the service continues running.
+     */
+
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         super.onStartCommand(intent, flags, startId)
         lifecycleScope.launch(dispatcherProvider.io) {
@@ -75,6 +103,11 @@ class CallInfoService : LifecycleService() {
         return START_STICKY
     }
 
+
+    /**
+     * Called when the service is destroyed. Removes the floating window if it was added and stops the service.
+     */
+
     override fun onDestroy() {
         super.onDestroy()
         lifecycleScope.launch(dispatcherProvider.main) {
@@ -84,6 +117,13 @@ class CallInfoService : LifecycleService() {
             }
         }
     }
+
+
+    /**
+     * Creates a notification to display while the service is running in the foreground.
+     *
+     * @return A notification object that informs the user that the service is active.
+     */
 
     private fun createNotification(): Notification {
         val channelId = "call_info_service_channel"
